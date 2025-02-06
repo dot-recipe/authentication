@@ -23,7 +23,7 @@ import lombok.ToString;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-@Entity
+@Entity(name = "users")
 @Getter
 @Setter
 @ToString
@@ -43,7 +43,7 @@ public class User implements UserDetails {
   private String password;
   
   @Email
-  @Column(nullable = false)
+  @Column(unique = true, nullable = false)
   private String email;
   
   @Column(nullable = false)

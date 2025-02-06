@@ -14,6 +14,7 @@ spring:
     username: ${DATASOURCE_USERNAME}
     password: ${DATASOURCE_PASSWORD}
   jpa:
+    database-platform: ${DATA_SOURCE_DIALECT}
     hibernate:
       ddl-auto: update
     show-sql: true

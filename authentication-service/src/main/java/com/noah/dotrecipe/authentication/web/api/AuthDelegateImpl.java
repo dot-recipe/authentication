@@ -6,10 +6,12 @@ import com.noah.dotrecipe.authentication.dto.JwtTokenDto;
 import com.noah.dotrecipe.authentication.dto.LoginDto;
 import com.noah.dotrecipe.authentication.dto.RegisterDto;
 import com.noah.dotrecipe.authentication.entities.User;
+import com.noah.dotrecipe.authentication.exceptions.UserNameNotUniqueException;
+import com.noah.dotrecipe.authentication.mapper.UserMapper;
 import com.noah.dotrecipe.authentication.service.UserService;
+import java.text.MessageFormat;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -24,26 +26,33 @@ import org.springframework.stereotype.Component;
 public class AuthDelegateImpl implements AuthApiDelegate {
   
   private final UserService userService;
+  private final UserMapper userMapper;
   private final TokenGenerator tokenGenerator;
   private final DaoAuthenticationProvider daoAuthenticationProvider;
   private final JwtAuthenticationProvider refreshTokenAuthProvider;
   
   @Override
   public ResponseEntity<JwtTokenDto> register(RegisterDto registerDto) {
-    if (isUserExists(registerDto.getUsername())) {  
-      return ResponseEntity.badRequest().build();
+    // Throw if already exists
+    if (userService.userExists(registerDto.getUsername())) {
+      throw new UserNameNotUniqueException(
+          MessageFormat.format(
+              "Username {0} already exists", registerDto.getUsername())
+      );
     }
-    User user = userService.createUser(registerDto);
+    
+    User user = userMapper.toUser(registerDto);
+    userService.createUser(user);
     Authentication authentication =
         UsernamePasswordAuthenticationToken.authenticated(
             user, registerDto.getPassword(), user.getAuthorities()
         );
     return ResponseEntity.ok(tokenGenerator.createToken(authentication));
   }
-  
+
   @Override
   public ResponseEntity<JwtTokenDto> login(LoginDto loginDto) {
-    if (!isUserExists(loginDto.getUsername())) {
+    if (!userService.userExists(loginDto.getUsername())) {
       return ResponseEntity.badRequest().build();
     }
     Authentication authentication =
@@ -54,7 +63,7 @@ public class AuthDelegateImpl implements AuthApiDelegate {
         );
     return ResponseEntity.ok(tokenGenerator.createToken(authentication)); 
   }
-  
+
   @Override
   public ResponseEntity<JwtTokenDto> token(JwtTokenDto jwtTokenDto) {
     Authentication authentication =
@@ -68,9 +77,5 @@ public class AuthDelegateImpl implements AuthApiDelegate {
       return ResponseEntity.badRequest().build();
     }
     return ResponseEntity.ok(tokenGenerator.createToken(authentication));
-  }
-  
-  private boolean isUserExists(String username) {
-    return userService.existsByUsername(username);
   }
 }
